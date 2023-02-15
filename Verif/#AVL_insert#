@@ -1,0 +1,57 @@
+Require Import Coq.Lists.List.
+Require Import Coq.ZArith.ZArith.
+Import ListNotations.
+Local Open Scope Z.
+
+Definition Key: Type := Z.
+Definition Value : Type := Z.
+Definition Depth : Type := nat.
+
+Record Node := newnode{
+  key_of : Key;
+  value_of : Value;
+  depth_of : Depth
+}.
+
+Inductive tree : Type :=
+| E: tree
+| T : tree -> Node -> tree -> tree.
+
+Inductive LeftOrRight :=
+| L: LeftOrRight
+| R: LeftOrRight.
+
+Definition half_tree: Type := (LeftOrRight * Node * tree)%type.
+
+Definition LRhalf (h:half_tree):LeftOrRight := fst (fst h).
+
+Definition treeinhalf (h:half_tree) : tree := snd h.
+
+Definition nodeinhalf (h:half_tree) : Node := snd (fst h).
+
+Definition insert_balance (h:half_tree) (t:tree):=
+match (Nat.leb (depth_of_tree (treeinhalf h)) (S(depth_of_tree t))) with
+|true=>match (Nat.eqb (depth_of_tree (treeinhalf h)) (depth_of_tree t)) with
+       |true=>match LRhalf with
+              |L=>T (treeinhalf h) (nodeinhalf h) t
+              |R=>T t (nodeinhalf h) (treeinhalf h)
+              end
+       |false=>match LRhalf with
+              |L=> (T (treeinhalf h) (newnode (key_of (nodeinhalf h))(value_of (nodeinhalf h)) (S (depth_of (nodeinhalf h))) t ))
+              |R=> (T t (newnode (key_of (nodeinhalf h))(value_of (nodeinhalf h)) (S (depth_of (nodeinhalf h))) (treeinhalf h)))
+              end
+       end
+|false=>rotate_balance h t
+end.
+Fixpoint insert (k:Key)(v:Value)(t:tree):tree:=
+match t with
+|E=>(T k v 1)
+|T ltree n rtree=>match (Nat.eqb k (key_of n)) with
+                  |true=>T ltree (newnode (key_of n)(v)(depth_of n)) rtree
+                  |false=>
+                      match (Nat.ltb k (key_of n)) with
+                      |true=>insert_balance (half_tree R n rtree) insert(k v ltree) 
+                      |false=>insert_balance (half_tree L n ltree) insert(k v rtree)
+                      end
+                  end
+end.
